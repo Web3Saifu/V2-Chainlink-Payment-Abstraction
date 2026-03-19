@@ -26,29 +26,29 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
 
   /// @notice This event is emitted when the asset out address is set.
   /// @param assetOut The address of the asset out.
-  event AssetOutSet(address indexed assetOut);
+  event AssetOutSet(address indexed assetOut);  //@audit-info Auction-এ কোন token দিয়ে pay করতে হবে”,, Now সবাই জানে → bid করতে LINK লাগবে
   /// @notice This event is emitted when the asset out receiver address is set.
   /// @param assetOutReceiver The address of the asset out receiver.
-  event AssetOutReceiverSet(address indexed assetOutReceiver);
+  event AssetOutReceiverSet(address indexed assetOutReceiver);  //@audit-info “Collected LINK কোথায় যাবে”
   /// @notice This event is emitted when the parameters of an asset are updated.
   /// @param asset The address of the asset.
   /// @param params The updated asset parameters.
-  event AssetParamsUpdated(address indexed asset, AssetParams params);
+  event AssetParamsUpdated(address indexed asset, AssetParams params);  //@audit-info এই asset-এর auction rules update হলো”
   /// @notice This event is emitted when the parameters of an asset are removed.
   /// @param asset The address of the asset.
-  event AssetParamsRemoved(address indexed asset);
+  event AssetParamsRemoved(address indexed asset);  //@audit-info এই asset আর auction-এ নেই” ,,এখন USDC আর auction হবে না
   /// @notice This event is emitted when a new fee aggregator receiver is set
   /// @param feeAggregator The address of the fee aggregator
-  event FeeAggregatorSet(address indexed feeAggregator);
+  event FeeAggregatorSet(address indexed feeAggregator);//@audit-info new aggregator = FeeVault
   /// @notice This event is emitted when the minimum bid USD value is set.
   /// @param minBidUsdValue The minimum bid USD value in 18 decimals.
-  event MinBidUsdValueSet(uint88 indexed minBidUsdValue);
+  event MinBidUsdValueSet(uint88 indexed minBidUsdValue);  //@audit-info “Minimum bid কত USD হতে হবে”
   /// @notice This event is emitted when the maximum discount basis points is set.
   /// @param minPriceMultiplier The maximum discount basis points.
-  event MinPriceMultiplierSet(uint64 indexed minPriceMultiplier);
+  event MinPriceMultiplierSet(uint64 indexed minPriceMultiplier);  //@audit-info Maximum discount limit ,,min multiplier = 0.98 (2% discount max)
   /// @notice This event is emitted when an auction is started for an asset.
   /// @param asset The address of the asset for which the auction is started.
-  event AuctionStarted(address indexed asset);
+  event AuctionStarted(address indexed asset);  //@audit-info AuctionStarted(USDC),,এখন users bid করতে পারবে
   /// @notice This event is emitted when an auction is ended for an asset.
   /// @param asset The address of the asset for which the auction is ended.
   event AuctionEnded(address indexed asset);
@@ -57,47 +57,47 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   /// @param assetIn The address of the asset being auctioned.
   /// @param amountIn The amount of asset being auctioned.
   /// @param amountOut The amount of asset out received.
-  event AuctionBidSettled(address indexed bidder, address indexed assetIn, uint256 amountIn, uint256 amountOut);
+  event AuctionBidSettled(address indexed bidder, address indexed assetIn, uint256 amountIn, uint256 amountOut);  //@audit-info User:,,100 USDC নেয়,,10 LINK pay করে,,  AuctionBidSettled(user, USDC, 100, 10) ,,Full trade record হয়ে গেল
 
   /// @notice This error is thrown when trying to access asset parameters that are not set.
   /// @param asset The asset with unset parameters.
-  error AssetParamsNotSet(address asset);
+  error AssetParamsNotSet(address asset);//@audit-info “Asset config নাই”
   /// @notice This error is thrown when trying to set an ending price multiplier lower than the minPriceMultiplier.
   /// @param asset The asset with invalid decay rate.
   /// @param endingPriceMultiplier The ending price multiplier.
   /// @param minPriceMultiplier The price multiplier lower bound.
-  error InvalidEndingPriceMultiplier(address asset, uint256 endingPriceMultiplier, uint64 minPriceMultiplier);
+  error InvalidEndingPriceMultiplier(address asset, uint256 endingPriceMultiplier, uint64 minPriceMultiplier);  //@audit-info শেষ price limit খুব low (too much discount)”
   /// @notice This error is thrown when the starting price multiplier is lower than the ending price multiplier.
   /// @param asset The asset with invalid price multipliers.
   /// @param startingPriceMultiplier The starting price multiplier.
   /// @param endingPriceMultiplier The ending price multiplier.
-  error StartingPriceMultiplierLowerThanEndingPriceMultiplier(
+  error StartingPriceMultiplierLowerThanEndingPriceMultiplier(  //@audit-info Start = 0.9,, End = 1.0 ❌,,price তো কমার কথা, বাড়ার না
     address asset, uint256 startingPriceMultiplier, uint256 endingPriceMultiplier
   );
   /// @notice This error is thrown when the provided asset decimals do not match the actual asset decimals.
   /// @param asset The address of the asset.
   /// @param decimals The provided asset decimals.
   /// @param expectedDecimals The actual asset decimals.
-  error InvalidAssetDecimals(address asset, uint8 decimals, uint8 expectedDecimals);
+  error InvalidAssetDecimals(address asset, uint8 decimals, uint8 expectedDecimals);  //@audit-info Wrong decimals দিয়েছো
   /// @notice This error is thrown when trying to bid a non live auction (ended, not started or non allowlisted).
   /// @param asset The asset of the invalid auction.
-  error InvalidAuction(address asset);
+  error InvalidAuction(address asset);  //@audit-info “Auction valid না”
   /// @notice This error is thrown when trying to update auction sensitive configs during live auctions.
-  error LiveAuction();
+  error LiveAuction();  //@audit-info Auction চলছে → change allowed না”
   /// @notice This error is thrown when the bid USD value is below the minimum auction size.
   /// @param bidUsdValue The bid USD value.
   /// @param minAuctionSizeUsd The minimum auction size in USD.
-  error BidValueTooLow(uint256 bidUsdValue, uint256 minAuctionSizeUsd);
+  error BidValueTooLow(uint256 bidUsdValue, uint256 minAuctionSizeUsd);//@audit-info Bid value below minimum USD threshold; Example: min=$100, user bids $20 → revert
   /// @notice This error is thrown when the bid amount is higher than the available amount in the auction.
   /// @param bidAmount The bid amount.
   /// @param availableAmount The available amount in the auction.
-  error BidAmountTooHigh(uint256 bidAmount, uint256 availableAmount);
+  error BidAmountTooHigh(uint256 bidAmount, uint256 availableAmount);//@audit-info Requested amount exceeds available balance; Example: available=100 USDC, user asks 200 → revert
   /// @notice This error is thrown when trying to call performUpkeep while the asset out parameters are missing.
-  error MissingAssetOutParams();
+  error MissingAssetOutParams();//@audit-info Payment token (assetOut) not configured → auction cannot function; Example: LINK params missing → performUpkeep fails
   /// @notice This error is thrown when trying to force start an auction with an amount below the minimum auction size.
   /// @param amountUsdValue The amount USD value.
   /// @param minAuctionSizeUsd The minimum auction size in USD.
-  error AmountBelowMinAuctionSize(uint256 amountUsdValue, uint256 minAuctionSizeUsd);
+  error AmountBelowMinAuctionSize(uint256 amountUsdValue, uint256 minAuctionSizeUsd);//@audit-info Auction start করার amount খুব ছোট; Example: min=$1000 কিন্তু আছে $100 → auction start হবে না
 
   // @notice Parameters to initialize the contract in the constructor.
   // solhint-disable-next-line gas-struct-packing
@@ -106,20 +106,20 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     // The initial contract admin.
     uint48 adminRoleTransferDelay; // ────────────────────╯ The min seconds
     // before the admin address can be transferred.
-    uint64 minPriceMultiplier; // ────────────────────────╮ The
+    uint64 minPriceMultiplier; // ────────────────────────╮   //@audit-info price কত কমতে পারবে (max discount limit)
     // auction price multiplier lower bound in basis points
     //                                                    │ used for input validation of all assets configured in the
     //                                                    │ contract.
-    address verifierProxy; // ────────────────────────────╯
+    address verifierProxy; // ────────────────────────────╯   //@audit-info Price oracle contract address.
     // The address of the Data Streams VerifierProxy contract.
     uint88 minBidUsdValue; // ────────────────────────────╮
     // The minimum bid USD value in 18 decimals.
     address linkToken; // ────────────────────────────────╯
     // The address of the LINK token contract.
-    address assetOut; //                                    The asset out of all the auctions.
-    address assetOutReceiver; //                            The asset out receiver.
-    address feeAggregator; //                               The fee aggregator.
-    PriceManager.ApplyFeedInfoUpdateParams[] feedInfos; //  The initial feed info list.
+    address assetOut; //                                    The asset out of all the auctions.//@audit-info Token users pay with link.,,The main auction payment token.
+    address assetOutReceiver; //                            The asset out receiver.//@audit-info  Where the collected payment go,, Treasury / vault address.
+    address feeAggregator; //                               The fee aggregator.//@audit-info Contract where auction fees are collected.
+    PriceManager.ApplyFeedInfoUpdateParams[] feedInfos; //  The initial feed info list.  //@audit-info Defines how prices are fetched for each asset.
   }
 
   /// @notice The auction parameters of an asset.
@@ -133,17 +133,17 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   ///   - decayRatePerSecond = (1.1e18 - 0.98e18) / 3600 = 33333333333333 (rounded down to avoid higher
   ///     discount than 2%)
   struct AssetParams {
-    uint96 minAuctionSizeUsd; // ───────╮ The minimum swap size expressed in USD feed decimals.
-    uint64 startingPriceMultiplier; //  │ The starting price multiplier with 18 decimals precision.
-    uint64 endingPriceMultiplier; //    │ The ending price multiplier with 18 decimals precision.
-    uint24 auctionDuration; //          │ The duration of the auction in seconds.
+    uint96 minAuctionSizeUsd; // ───────╮ The minimum swap size expressed in USD feed decimals//@audit-info USD তে ন্যূনতম অকশন সাইজ।.
+    uint64 startingPriceMultiplier; //  │ The starting price multiplier with 18 decimals precision.//@audit-info সাধারণত >1 → প্রাথমিকভাবে প্রিমিয়াম দেয়।
+    uint64 endingPriceMultiplier; //    │ The ending price multiplier with 18 decimals precision.  //@audit-info অকশনের শেষ মূল্য,,  সাধারণত <1 → সময়ের সাথে ডিসকাউন্ট প্রয়োগ করে।
+    uint24 auctionDuration; //          │ The duration of the auction in seconds.  //@audit-info অকশন কতক্ষণ চলবে (সেকেন্ডে),,  উদাহরণ: 3600 = 1 ঘন্টা।
     uint8 decimals; //  ────────────────╯ The asset decimals.
   }
 
   /// @notice The parameters for adding or updating asset parameters.
   struct ApplyAssetParamsUpdate {
     address asset; // The address of the asset.
-    AssetParams params; // The asset parameters.
+    AssetParams params; // The asset parameters.//@audit-info যেমন minAuctionSizeUsd, starting/endingMultiplier, duration, decimals ইত্যাদি।
   }
 
   /// @inheritdoc ITypeAndVersion
@@ -151,23 +151,23 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
 
   /// @notice The auction price multiplier lower bound in 18 decimals used for input validation of all assets configured
   /// in the contract - e.g. 0.98e18 represents a maximum discount of 2%.
-  uint64 internal immutable i_minPriceMultiplier;
+  uint64 internal immutable i_minPriceMultiplier;//@audit-info অকশন প্রাইসের লোয়ার বাউন্ড।
 
   /// @notice Reentrant flag.
   bool internal s_entered;
   /// @notice The minimum bid USD value in 18 decimals.
   uint88 internal s_minBidUsdValue;
   /// @notice The asset out of all the auctions.
-  address internal s_assetOut;
+  address internal s_assetOut;  //@audit-info user যা দেয় (যেমন: LINK),,  //@audit-info Auction sells → USDC,, User pays → LINK
   /// @notice The receiver of to tokens.
-  address internal s_assetOutReceiver;
+  address internal s_assetOutReceiver; 
   /// @notice The fee aggregator
   IFeeAggregator internal s_feeAggregator;
 
   /// @notice Mapping from `from` token to its struct.
-  mapping(address asset => AssetParams params) internal s_assetParams;
+  mapping(address asset => AssetParams params) internal s_assetParams;//@audit-info 👉 from token (অ্যাসেট) থেকে তার AssetParams পেতে।
   /// @notice Mapping from `from` token to the auction start timestamp.
-  mapping(address asset => uint256 auctionStart) internal s_auctionStarts;
+  mapping(address asset => uint256 auctionStart) internal s_auctionStarts;  //@audit-info 👉 কবে অকশন শুরু হয়েছে তা ট্র্যাক করতে।
 
   modifier whenAssetOutConfigured() {
     if (s_assetParams[s_assetOut].decimals == 0) {
@@ -809,3 +809,10 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     return (super.supportsInterface(interfaceId) || interfaceId == type(IBaseAuction).interfaceId);
   }
 }
+  /*@audit-info 🔢 Fixed Example (সব জায়গায় একই)
+Auction asset: USDC
+Asset out: LINK
+Total: 1000 USDC
+Price:
+1 USDC = $1
+1 LINK = $10 */
