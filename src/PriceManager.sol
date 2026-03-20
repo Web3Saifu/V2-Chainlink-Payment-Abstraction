@@ -369,7 +369,7 @@ abstract contract PriceManager is LinkReceiver, EmergencyWithdrawer, IPriceManag
   /// @return price The latest price of the asset, scaled to 18 decimals.
   /// @return updatedAt The timestamp of the latest price update.
   /// @return isValid Whether the returned price is valid or not (non-zero and not stale).
-  function _getAssetPrice(
+  function _getAssetPrice(  //@audit-info এই asset-এর latest USD price খুঁজে বের করো (safe কিনা check করে)”
     address asset,
     bool withValidation
   ) internal view virtual returns (uint256 price, uint256 updatedAt, bool isValid) {

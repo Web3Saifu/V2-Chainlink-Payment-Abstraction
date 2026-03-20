@@ -170,7 +170,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   mapping(address asset => uint256 auctionStart) internal s_auctionStarts;  //@audit-info 👉 কবে অকশন শুরু হয়েছে তা ট্র্যাক করতে।
 
   modifier whenAssetOutConfigured() {
-    if (s_assetParams[s_assetOut].decimals == 0) {
+    if (s_assetParams[s_assetOut].decimals == 0) {  //@audit-info যদি decimals == 0 → MissingAssetOutParams() রিভার্ট।
       revert MissingAssetOutParams();
     }
     _;
@@ -179,17 +179,17 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   constructor(
     ConstructorParams memory params
   )
-    PriceManager(params.adminRoleTransferDelay, params.admin, params.verifierProxy, params.linkToken, params.feedInfos)
-  {
+    PriceManager(params.adminRoleTransferDelay, params.admin, params.verifierProxy, params.linkToken, params.feedInfos)  //@audit-info PriceManager(...),, Parent contract setup
+  { 
     if (params.assetOut == address(0) || params.assetOutReceiver == address(0)) {
       revert Errors.InvalidZeroAddress();
     }
 
-    _setMinBidUsdValue(params.minBidUsdValue);
-    _setAssetOut(params.assetOut);
-    _setAssetOutReceiver(params.assetOutReceiver);
+    _setMinBidUsdValue(params.minBidUsdValue);//@audit-info minBidUsdValue = $100
+    _setAssetOut(params.assetOut);  //@audit-info LINK দিয়ে pay করবে
+    _setAssetOutReceiver(params.assetOutReceiver);  //@audit-info সব collected LINK যাবে:
     _setFeeAggregator(params.feeAggregator);
-
+ 
     if (params.minPriceMultiplier == 0) {
       revert Errors.InvalidZeroValue();
     }
@@ -217,34 +217,34 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     bytes calldata
   ) external view whenNotPaused whenAssetOutConfigured returns (bool upkeepNeeded, bytes memory performData) {
     address feeAggregator = address(s_feeAggregator);
-    address[] memory auctions = s_allowlistedAssets.values();
-    Common.AssetAmount[] memory eligibleAssets = new Common.AssetAmount[](auctions.length);
-    address[] memory endedAuctions = new address[](auctions.length);
+    address[] memory auctions = s_allowlistedAssets.values();  //@audit-info এখন auctions array = [USDC_address, WETH_address, DAI_address]
+    Common.AssetAmount[] memory eligibleAssets = new Common.AssetAmount[](auctions.length);//@audit-info AssetAmount struct use করার syntax  ,,অর্থ: eligibleAssets = AssetAmount struct array, memory এ রাখা হয়েছে, size = auctions.length
+    address[] memory endedAuctions = new address[](auctions.length);//@audit-info এই array endedAuctions হলো যেসব asset এর auction শেষ হয়ে গেছে বা close করা যাবে, তাদের জন্য।
 
-    uint256 eligibleAssetsIdx;
-    uint256 endedAuctionsIdx;
-    bool isAssetOutPriceValid;
+    uint256 eligibleAssetsIdx;  //@audit-info কতগুলো asset auction শুরু করতে যোগ্য সেটার counter
+    uint256 endedAuctionsIdx;  //@audit-info কতগুলো auction শেষ হয়েছে সেটার counter
+    bool isAssetOutPriceValid;  //@audit-info মূল auction token (assetOut) এর price valid কিনা check করার জন্য
 
     for (uint256 i; i < auctions.length; ++i) {
       address asset = auctions[i];
 
-      AssetParams memory assetParams = s_assetParams[asset];
+      AssetParams memory assetParams = s_assetParams[asset];  //@audit-info প্রতিটা asset এর configuration load করা হচ্ছে।
 
       // Skip assets without configured params.
-      if (assetParams.decimals == 0) {
-        continue;
+      if (assetParams.decimals == 0) {  //@audit-info যদি asset এর params configure না করা হয় → skip।
+        continue;  //@audit-info এই asset ignore করো, আমরা auction এর জন্য এটি use করতে পারব না।
       }
 
-      (uint256 assetPrice,, bool isPriceValid) = _getAssetPrice(asset, false);
+      (uint256 assetPrice,, bool isPriceValid) = _getAssetPrice(asset, false);  //@audit-info false মানে,, ➡️ “আমাকে শুধু info দাও, error throw করো না”
 
-      if (asset == s_assetOut) {
-        isAssetOutPriceValid = isPriceValid;
+      if (asset == s_assetOut) {  //@audit-info এই asset কি main payment token?”
+        isAssetOutPriceValid = isPriceValid;  //@audit-info তখন store করবে:LINK token-এর price valid কিনা,,LINK price valid = false 
       }
 
       // 1) Check for live or ended auctions.
-      uint256 auctionStart = s_auctionStarts[asset];
+      uint256 auctionStart = s_auctionStarts[asset]; //@audit-info 👉কবে অকশন শুরু হয়েছে তা store করতে।
       if (auctionStart != 0) {
-        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));  //@audit-info assetBalance ,,contract এ থাকা USDC ,,(remaining stock) ,,Sell random tokens → collect LINK”
         uint256 assetBalanceUsdValue = (assetBalance * assetPrice) / (10 ** assetParams.decimals);
         if (
           auctionStart + assetParams.auctionDuration < block.timestamp
@@ -266,7 +266,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
       }
     }
 
-    // If the asset out price is not valid, we should not start any auctions even if there are eligible assets as bids
+    // If the asset out price is not valid, we s`hould not start any auctions even if there are eligible assets as bids
     // would revert.
     if (!isAssetOutPriceValid) {
       eligibleAssetsIdx = 0;
@@ -471,7 +471,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
 
   /// @dev precondition - The new minimum bid USD value must be greater than zero.
   /// @dev precondition - The new minimum bid USD value must be different from the already configured one.
-  function _setMinBidUsdValue(
+  function _setMinBidUsdValue(//@audit-ok 
     uint88 minBidUsdValue
   ) private {
     if (minBidUsdValue == 0) {
@@ -500,7 +500,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   function _setAssetOut(
     address assetOut
   ) private {
-    _whenNoLiveAuctions();
+    _whenNoLiveAuctions();//@audit-info auction চললে change allowed না”
     if (assetOut == address(0)) {
       revert Errors.InvalidZeroAddress();
     }
@@ -665,7 +665,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
 
   /// @dev Helper function to check that there are no live auctions, used as a precondition for configuration changes
   /// that should not be applied during live auctions
-  function _whenNoLiveAuctions() internal view {
+  function _whenNoLiveAuctions() internal view {//@audit-ok 
     if (_liveAuctionExists()) {
       revert LiveAuction();
     }
