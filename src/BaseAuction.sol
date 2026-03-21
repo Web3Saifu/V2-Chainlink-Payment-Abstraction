@@ -244,11 +244,11 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
       // 1) Check for live or ended auctions.
       uint256 auctionStart = s_auctionStarts[asset]; //@audit-info 👉কবে অকশন শুরু হয়েছে তা store করতে।
       if (auctionStart != 0) {
-        uint256 assetBalance = IERC20(asset).balanceOf(address(this));  //@audit-info assetBalance ,,contract এ থাকা USDC ,,(remaining stock) ,,Sell random tokens → collect LINK”
-        uint256 assetBalanceUsdValue = (assetBalance * assetPrice) / (10 ** assetParams.decimals);
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));  //@audit-info assetBalance ,,contract এ থাকা USDC , assetBalance =100 USDC 
+        uint256 assetBalanceUsdValue = (assetBalance * assetPrice) / (10 ** assetParams.decimals);//@audit-info “এই লাইনে contract এ থাকা token এর মোট value USD-এ convert করা হচ্ছে”  ,, $100 (18 decimals format)
         if (
-          auctionStart + assetParams.auctionDuration < block.timestamp
-            || (isPriceValid && assetBalanceUsdValue < assetParams.minAuctionSizeUsd)
+          auctionStart + assetParams.auctionDuration < block.timestamp  //@audit-info Auction start = 10:00 AM ,,Duration = 1 hour ,, Now = 11:10 AM ,,➡️ 11:00 এর পরে → auction শেষ ❌
+            || (isPriceValid && assetBalanceUsdValue < assetParams.minAuctionSizeUsd)  //? @audit-info  price ঠিক আছে (not stale, not zero) ,,auction-এ এখন যত asset বাকি আছে → সেটা minimum requirement এর নিচে
         ) {
           endedAuctions[endedAuctionsIdx++] = asset;
         }
