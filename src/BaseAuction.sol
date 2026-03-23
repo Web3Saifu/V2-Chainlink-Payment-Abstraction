@@ -271,16 +271,17 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     if (!isAssetOutPriceValid) {
       eligibleAssetsIdx = 0;  //@audit-info eligibleAssets = [{USDC, 1000}] ,, LINK price = INVALID ❌ ,, eligibleAssetsIdx = 0  ,, → eligibleAssets = empty
     }
-    if (eligibleAssetsIdx < auctions.length) {
+    if (eligibleAssetsIdx < auctions.length) {  //@audit-info 1 < 3 → TRUE ✅
       assembly {  //@audit-info “Solidity bypass করে সরাসরি EVM (low-level) code লেখা”
         // update eligibleassets length.
-        mstore(eligibleAssets, eligibleAssetsIdx)  //@audit-info “যতজন আসলে আছে, array-কে তত বড় দেখাও”
+        mstore(eligibleAssets, eligibleAssetsIdx)  //@audit-info  mstore(weth, 1)  ,, 2 < 2 → FALSE ❌  ,,mstore call হবে না ,,কারণ already perfect size
+          //@audit-info “যতজন আসলে আছে, array-কে তত বড় দেখাও”
       }
     }
-    if (endedAuctionsIdx < auctions.length) {
-      assembly {
+    if (endedAuctionsIdx < auctions.length) {  //@audit-info 1 < 3 → TRUE ✅  
+      assembly {  //@audit-info if (actual < max) ,,,→ extra empty slot hide করো
         // update endedAuctionsIdx length.
-        mstore(endedAuctions, endedAuctionsIdx)
+        mstore(endedAuctions, endedAuctionsIdx)//@audit-info length = 1 ,, [WETH]
       }
     }
 
@@ -302,7 +303,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   /// @dev precondition - Eligible assets must be configured.
   /// @dev precondition - Eligible assets amounts USD values must be above the minimum auction size.
   /// @dev precondition - Ended auctions must not be the asset out.
-  function performUpkeep(
+  function performUpkeep(//@audit-info execution engine 🔥
     bytes calldata performData
   ) external whenNotPaused whenAssetOutConfigured onlyRole(Roles.AUCTION_WORKER_ROLE) {
     (Common.AssetAmount[] memory eligibleAssets, address[] memory endedAuctions) =
