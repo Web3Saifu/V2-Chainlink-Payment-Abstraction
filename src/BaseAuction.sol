@@ -286,9 +286,10 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     }
 
     // Using if/else here to avoid abi.encoding empty bytes when idx = 0.
-    if (eligibleAssetsIdx > 0 || endedAuctionsIdx > 0) {
+    if (eligibleAssetsIdx > 0 || endedAuctionsIdx > 0) {  //@audit-info eligibleAssetsIdx = 2   // USDC, WETH ,,endedAuctionsIdx = 1    // DAI  ,,2 > 0 ✅ বা 1 > 0 ✅ → true
       upkeepNeeded = true;
-      performData = abi.encode(eligibleAssets, endedAuctions);
+      performData = abi.encode(eligibleAssets, endedAuctions);//@audit-info [USDC, WETH] ,, [DAI]
+ 
     }
 
     return (upkeepNeeded, performData);
@@ -306,7 +307,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   function performUpkeep(//@audit-info execution engine 🔥
     bytes calldata performData
   ) external whenNotPaused whenAssetOutConfigured onlyRole(Roles.AUCTION_WORKER_ROLE) {
-    (Common.AssetAmount[] memory eligibleAssets, address[] memory endedAuctions) =
+    (Common.AssetAmount[] memory eligibleAssets, address[] memory endedAuctions) =  //@audit-info checkUpkeep() already decide করে দিয়েছে: ,, eligibleAssets = [USDC: 1000]  ,, endedAuctions = [DAI]
       abi.decode(performData, (Common.AssetAmount[], address[]));
 
     // We should never pass a list of eligible assets with a non valid asset out price.
