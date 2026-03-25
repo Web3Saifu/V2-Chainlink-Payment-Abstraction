@@ -198,8 +198,8 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
 
     emit MinPriceMultiplierSet(params.minPriceMultiplier);
   }
-
-  /// @inheritdoc IBaseAuction
+  
+    /// @inheritdoc IBaseAuction
   /// @dev This function checks for eligible assets to start auctions and ended auctions to be closed.
   /// @dev precondition - The contract must not be paused.
   /// @dev precondition - The asset out must be configured.
@@ -295,6 +295,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     return (upkeepNeeded, performData);
   }
 
+
   /// @inheritdoc IBaseAuction
   /// @dev precondition - The contract must not be paused.
   /// @dev precondition - The asset out must be configured.
@@ -308,7 +309,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     bytes calldata performData
   ) external whenNotPaused whenAssetOutConfigured onlyRole(Roles.AUCTION_WORKER_ROLE) {
     (Common.AssetAmount[] memory eligibleAssets, address[] memory endedAuctions) =  //@audit-info checkUpkeep() already decide করে দিয়েছে: ,, eligibleAssets = [USDC: 1000]  ,, endedAuctions = [DAI]
-      abi.decode(performData, (Common.AssetAmount[], address[]));
+      abi.decode(performData, (Common.AssetAmount[], address[]));  //@audit-info Common.AssetAmount = (USDC, 1000)
 
     // We should never pass a list of eligible assets with a non valid asset out price.
     uint256 assetOutPrice;
