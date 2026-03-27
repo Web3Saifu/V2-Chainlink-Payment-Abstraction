@@ -305,14 +305,14 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   /// @dev precondition - Eligible assets must be configured.
   /// @dev precondition - Eligible assets amounts USD values must be above the minimum auction size.
   /// @dev precondition - Ended auctions must not be the asset out.
-  function performUpkeep(//@audit-info execution engine 🔥
+  function performUpkeep(//@audit-info  auction engine 🔥
     bytes calldata performData 
   ) external whenNotPaused whenAssetOutConfigured onlyRole(Roles.AUCTION_WORKER_ROLE) {
     (Common.AssetAmount[] memory eligibleAssets, address[] memory endedAuctions) =  //@audit-info checkUpkeep() already decide করে দিয়েছে: ,, eligibleAssets = [USDC: 1000]  ,, endedAuctions = [DAI]
       abi.decode(performData, (Common.AssetAmount[], address[]));  //@audit-info Common.AssetAmount = (USDC, 1000)
 
     // We should never pass a list of eligible assets with a non valid asset out price.
-    uint256 assetOutPrice;  //@audit-info এখানে শুধু variable declare করা হয়েছে  ,,assetOutPrice = empty
+    uint256 assetOutPrice;  //@audit-info এখানে শুধু variable declare করা হয়েছে  ,,link price এখানে store হবে যদি assetOutPrice valid হয়
     address assetOut = s_assetOut; //link 
     if (eligibleAssets.length > 0) { 
       (assetOutPrice,,) = _getAssetPrice(assetOut, true);//@audit-info “assetOut এর validated (safe) price নিয়ে আসো — invalid হলে revert করো” --valid price= true
@@ -327,33 +327,33 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     for (uint256 i; i < eligibleAssets.length; ++i) {
       address asset = eligibleAssets[i].asset;  //@audit-info eligibleAssets[0].asset → USDC --eligibleAssets[1].asset → DAI
 
-      if (s_auctionStarts[asset] != 0) {
-        revert LiveAuction();
+      if (s_auctionStarts[asset] != 0) {//@audit-info প্রতিটি asset কখন auction শুরু হয়েছে তার timestamp।--যদি 0 হয় → auction কখনো শুরু হয়নি।
+        revert LiveAuction();//@audit-info asset-এর auction already live
       }
 
-      AssetParams storage assetParams = s_assetParams[asset];
-      uint8 assetDecimals = assetParams.decimals;
+      AssetParams storage assetParams = s_assetParams[asset];  //@audit-info এই লাইনটা কেবল asset-এর জন্য asset-specific settings ধরছে।
+      uint8 assetDecimals = assetParams.decimals;  //@audit-info token-এর decimal USD value বের করছে।
 
       if (assetDecimals == 0) {
         revert AssetParamsNotSet(asset);
       }
 
-      uint256 assetPrice;
-      if (asset == assetOut) {
-        assetPrice = assetOutPrice;
+      uint256 assetPrice;  //@audit-info প্রতিটি asset-এর USD price এখানে store করা হচ্ছে।
+      if (asset == assetOut) {   //@audit-info  link =link jodi hoi
+        assetPrice = assetOutPrice;  //@audit-info I got a assetout price before Now I am reusing link price 10 usd
       } else {
         (assetPrice,,) = _getAssetPrice(asset, true);
       }
-      uint256 availableAssetUsdValue = (eligibleAssets[i].amount * assetPrice) / (10 ** assetDecimals);
+      uint256 availableAssetUsdValue = (eligibleAssets[i].amount * assetPrice) / (10 ** assetDecimals);  //@audit-info  শুধু USD value calculate করা হচ্ছে  (100 * 10^6 * 1) / 10^6
 
-      if (availableAssetUsdValue < assetParams.minAuctionSizeUsd) {
+      if (availableAssetUsdValue < assetParams.minAuctionSizeUsd) {  //@audit-info 400 < 1000
         revert AmountBelowMinAuctionSize(availableAssetUsdValue, assetParams.minAuctionSizeUsd);
       }
 
-      if (asset == s_assetOut) {
-        IERC20(asset).safeTransfer(s_assetOutReceiver, IERC20(asset).balanceOf(address(this)));
+      if (asset == s_assetOut) {  //@audit-info link =link --- তাহলে auction করার দরকার আছে? ❌---LINK সরাসরি receiver-কে পাঠিয়ে দাও
+        IERC20(asset).safeTransfer(s_assetOutReceiver, IERC20(asset).balanceOf(address(this)));  //@audit-info receiver  ,amount
       } else {
-        s_auctionStarts[asset] = block.timestamp;
+        s_auctionStarts[asset] = block.timestamp;  //@audit-info auction start time save করা হচ্ছে
         _onAuctionStart(asset);
         emit AuctionStarted(asset);
       }
@@ -362,7 +362,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     for (uint256 i; i < endedAuctions.length; ++i) {
       address asset = endedAuctions[i];
 
-      if (s_auctionStarts[asset] == 0) {
+      if (s_auctionStarts[asset] == 0) {//@audit-info If auction never started
         revert InvalidAuction(asset);
       }
 
@@ -393,9 +393,9 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
         IERC20(asset).safeTransfer(address(s_feeAggregator), assetBalance);
       }
     }
-    uint256 assetOutBalance = IERC20(s_assetOut).balanceOf(address(this));
+    uint256 assetOutBalance = IERC20(s_assetOut).balanceOf(address(this));  //@audit-info Check how much LINK contract has  ---assetOutBalance = 100 LINK
     if (assetOutBalance > 0) {
-      IERC20(s_assetOut).safeTransfer(s_assetOutReceiver, assetOutBalance);
+      IERC20(s_assetOut).safeTransfer(s_assetOutReceiver, assetOutBalance);  //@audit-info 100 LINK → receiver
     }
   }
 
