@@ -367,7 +367,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
       }
 
       _onAuctionEnd(endedAuctions[i], hasFeeAggregator);
-      delete s_auctionStarts[asset];
+      delete s_auctionStarts[asset];//@audit-info When auction started:
       emit AuctionEnded(asset);
     }
   }
@@ -397,7 +397,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
     if (assetOutBalance > 0) {
       IERC20(s_assetOut).safeTransfer(s_assetOutReceiver, assetOutBalance);  //@audit-info 100 LINK → receiver
     }
-  }
+  } 
 
   // ================================================================================================
   // │                                    Auction Participation                                     │
