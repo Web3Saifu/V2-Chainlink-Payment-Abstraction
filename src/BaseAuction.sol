@@ -403,6 +403,7 @@ abstract contract BaseAuction is PriceManager, ITypeAndVersion, Caller, IBaseAuc
   // │                                    Auction Participation                                     │
   // ================================================================================================
 
+
   /// @inheritdoc IBaseAuction
   /// @dev precondition - The auction for the asset must be live (i.e. started and not ended).
   /// @dev precondition - The caller must have approved the contract to spend at least `assetOutAmount` amount of asset
